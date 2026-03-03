@@ -31,7 +31,7 @@ cp /path/to/pack.json packs/
 
 # 2. Configure
 cp .env.example .env
-# Edit: add PACK_REPO, PACK_COMMIT
+# Edit: add PACK_URL
 
 # 3. Start
 docker-compose --profile miner up -d miner
@@ -57,8 +57,7 @@ EPOCH_INTERVAL=720      # 12 minutes for fast testing (production: 86400 = 24h)
 LOG_LEVEL=INFO
 
 # Miner
-PACK_REPO=https://github.com/user/repo
-PACK_COMMIT=abc123def456...
+PACK_URL=https://your-bucket.s3.amazonaws.com/pack.json
 ```
 
 ## Operations
@@ -90,7 +89,6 @@ docker-compose up -d validator
 - Volumes:
   - `~/.bittensor/wallets` → Wallet access (ro)
   - `./logs` → Persistent logs
-  - `./git_cache` → GitHub verification cache
 
 ### Miner Container
 - Base: Python 3.10-slim
@@ -120,7 +118,7 @@ docker exec trajectoryrl_miner env | grep PACK
 # Verify pack file
 docker exec trajectoryrl_miner ls -la /app/packs/
 
-# Ensure PACK_REPO and PACK_COMMIT are set in .env
+# Ensure PACK_URL is set in .env
 ```
 
 ### Network issues

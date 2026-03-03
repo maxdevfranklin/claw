@@ -200,14 +200,11 @@ services:
       - AGENTS_MD_PATH=${AGENTS_MD_PATH:-}
       - CHECK_INTERVAL=${CHECK_INTERVAL:-3600}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      # GitHub upload (optional — one upload method, S3/web-server coming soon)
-      - PACK_REPO=${PACK_REPO:-}
-      - PACK_COMMIT=${PACK_COMMIT:-}
-      - REPO_PATH=${REPO_PATH:-/app/packs}
-      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      # HTTP URL where the validator can fetch your pack.json
+      - PACK_URL=${PACK_URL:-}
     volumes:
       - ~/.bittensor/wallets:/root/.bittensor/wallets:ro
-      - ./packs:/app/packs  # no :ro — daemon mode writes pack.json and runs git push
+      - ./packs:/app/packs:ro
       - ./logs:/app/logs
     networks:
       - trajectoryrl
