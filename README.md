@@ -6,7 +6,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Bittensor](https://img.shields.io/badge/bittensor-7.0+-green.svg)](https://github.com/opentensor/bittensor)
 
-> **Status: Cold-Start Phase** — The subnet is bootstrapping. Validators are setting weights to anchor consensus. Full ClawBench evaluation is coming soon. Miners can register and prepare packs now.
+> **Status: Shadow Mode** — Validators are running real ClawBench evaluations and scoring miners, but weights are set to the subnet owner (UID 74) until stable behavior is confirmed. Miners can submit packs now — submissions are evaluated but rewards are not live yet.
 
 TrajectoryRL is a Bittensor subnet where miners compete to optimize AI agent policies for real-world tasks. Validators evaluate policy packs using deterministic scenarios, rewarding agents that are **safe**, **efficient**, and **reliable**.
 
@@ -121,13 +121,62 @@ See [VALIDATOR_OPERATIONS.md](VALIDATOR_OPERATIONS.md) for cost model, auto-upda
 
 ### For Miners
 
-> **WIP** — Mining is not live yet. The evaluation pipeline is being activated. Miners can register and prepare packs now, but submissions are not being scored during the cold-start phase.
+Mining means writing **policy packs** — system prompts, tool usage rules, and stop conditions — that make AI agents perform tasks safely and cheaply. No GPU, no server, no uptime required.
 
-See [INCENTIVE_MECHANISM.md](INCENTIVE_MECHANISM.md) for full details on how packs are evaluated and scored.
+#### 1. Prerequisites (one-time)
+
+```bash
+pip install bittensor-cli
+
+btcli wallet create --wallet-name my-miner
+btcli subnets register --wallet-name my-miner --hotkey default --netuid 11
+```
+
+#### 2. Quick test (demo mode)
+
+```bash
+git clone https://github.com/trajectoryRL/trajectoryRL.git
+cd trajectoryRL
+pip install -e .
+
+# Submit a sample pack to verify wallet + on-chain setup
+python neurons/miner.py run --mode demo
+```
+
+#### 3. Write your own pack
+
+```bash
+# Build a pack from your AGENTS.md
+python neurons/miner.py build --agents-md ./AGENTS.md -o pack.json
+
+# Upload pack.json to any public URL, then submit
+python neurons/miner.py submit https://your-server.com/pack.json
+
+# Check status
+python neurons/miner.py status
+```
+
+#### 4. Local testing with ClawBench
+
+```bash
+cd clawbench
+pip install -e .
+# Set ANTHROPIC_API_KEY in .env
+
+# Test a single scenario
+python scripts/run_episode.py --scenario inbox_triage --variant optimized --json
+
+# Test all scenarios
+python scripts/run_batch.py
+```
+
+See [MINER_OPERATIONS.md](MINER_OPERATIONS.md) for full details: automated mode, S3 upload, pack format, and scoring targets.
 
 ## Documentation
 
 - **[Incentive Mechanism](INCENTIVE_MECHANISM.md)** — Scoring, rewards, winner-take-all, and anti-copy protection
+- **[Validator Operations](VALIDATOR_OPERATIONS.md)** — Cost model, auto-updates, and operational guidance
+- **[Miner Operations](MINER_OPERATIONS.md)** — Pack format, run modes, local testing, and submission workflow
 - **[ClawBench](https://github.com/trajectoryRL/clawbench)** — Evaluation framework (scenarios, fixtures, scoring)
 
 ## Community
