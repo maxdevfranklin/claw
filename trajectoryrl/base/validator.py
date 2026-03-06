@@ -23,7 +23,7 @@ import time
 import yaml
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import bittensor as bt
 
@@ -35,6 +35,7 @@ from ..utils.github import PackFetcher
 from ..utils.epoch_context import generate_epoch_context, render_context_preamble
 from ..utils.commitments import MinerCommitment, fetch_all_commitments
 from ..utils.ncd import is_too_similar, pack_similarity
+from ..utils.status_reporter import report_status
 
 logger = logging.getLogger(__name__)
 
@@ -395,6 +396,9 @@ class TrajectoryValidator:
         - eval_interval (~4h / 1200 blocks): evaluate marked packs, update EMA.
         - tempo (~72 min / 360 blocks): compute weights from EMA, set_weights.
         """
+        self._report_metadata: Dict[str, Any] = {}
+        self._start_time = time.time()
+
         logger.info("Starting validator main loop...")
         logger.info(
             f"Eval interval: {self.config.eval_interval_blocks} blocks "
@@ -454,6 +458,12 @@ class TrajectoryValidator:
                     await self._compute_and_set_weights(current_block)
                     self.last_weight_block = current_block
 
+                await report_status(
+                    self.wallet,
+                    node_type="validator",
+                    uptime=int(time.time() - self._start_time),
+                    metadata=self._report_metadata or None,
+                )
                 await asyncio.sleep(60)
 
             except KeyboardInterrupt:
@@ -896,10 +906,27 @@ class TrajectoryValidator:
                 f"score={scores.get(uid, 0):.3f}{marker}"
             )
 
+        # Update report metadata with miner scores
+        miner_scores = {}
+        for uid, weight in weights_dict.items():
+            hk = uid_to_hotkey.get(uid, "")
+            if not hk:
+                continue
+            entry: Dict[str, Any] = {
+                "uid": uid,
+                "score": round(scores.get(uid, 0), 4),
+                "weight": round(weight, 4),
+                "qualified": qualified.get(uid, False),
+            }
+            if uid in costs:
+                entry["cost"] = round(costs[uid], 4)
+            miner_scores[hk] = entry
+        self._report_metadata["miner_scores"] = miner_scores
+        self._report_metadata["miners_evaluated"] = len(miner_scores)
+
         # Set weights on chain
         if SHADOW_MODE:
-            logger.info("SHADOW MODE: eval complete, setting fallback weights to owner UID")
-            await self._set_fallback_weights()
+            await self._set_fallback_weights(reason="SHADOW MODE: eval complete")
         else:
             uids = list(weights_dict.keys())
             weights = [weights_dict[uid] for uid in uids]
@@ -916,7 +943,7 @@ class TrajectoryValidator:
             except Exception as e:
                 logger.error(f"Error setting weights: {e}", exc_info=True)
 
-    async def _set_fallback_weights(self):
+    async def _set_fallback_weights(self, reason: str = "No eligible miners"):
         """Set weights to subnet owner UID when no miners qualify.
 
         Directs all emission to the subnet owner so it is not wasted on
@@ -928,7 +955,7 @@ class TrajectoryValidator:
             weights = [1.0]
 
             logger.info(
-                f"No eligible miners — setting fallback weight to "
+                f"{reason} — setting fallback weight to "
                 f"owner UID {OWNER_UID}"
             )
             self.subtensor.set_weights(
