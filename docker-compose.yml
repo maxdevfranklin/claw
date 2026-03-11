@@ -125,6 +125,7 @@ services:
       - NETWORK=${NETWORK:-finney}
       # ClawBench integration (wired to sibling services)
       - CLAWBENCH_PATH=/app/clawbench
+      - CLAWBENCH_COMMIT=${CLAWBENCH_COMMIT:-ca930dfecc95ebe1565ab7c001650fbcc3f9d89d}
       - MOCK_TOOLS_URL=http://mock-tools:3001
       - OPENCLAW_URL=http://openclaw:18789
       - WORKSPACE_PATH=/workspace
@@ -143,6 +144,7 @@ services:
       - ~/.bittensor/wallets:/root/.bittensor/wallets:ro
       - workspace:/workspace
       - ./logs:/app/logs
+      - ./.cursor:/app/.cursor
       - /tmp/trajectoryrl_packs:/tmp/trajectoryrl_packs
     depends_on:
       mock-tools:

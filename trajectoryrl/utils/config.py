@@ -1,13 +1,27 @@
 """Validator and miner configuration."""
 
+import json
 import logging
 import os
 import subprocess
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
 logger = logging.getLogger(__name__)
+
+# #region agent log
+def _debug_log(location: str, message: str, data: dict, hypothesis_id: str) -> None:
+    try:
+        log_path = Path("/app/.cursor/debug-c26327.log") if Path("/app/clawbench").exists() else Path(__file__).resolve().parent.parent.parent / ".cursor" / "debug-c26327.log"
+        payload = {"sessionId": "c26327", "location": location, "message": message, "data": data, "timestamp": int(time.time() * 1000), "hypothesisId": hypothesis_id}
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(log_path, "a") as f:
+            f.write(json.dumps(payload) + "\n")
+    except Exception:
+        pass
+# #endregion
 
 
 @dataclass
@@ -55,7 +69,7 @@ class ValidatorConfig:
     clawbench_path: Path = field(
         default_factory=lambda: Path(__file__).parent.parent.parent.parent / "clawbench"
     )
-    clawbench_commit: str = "25d678066ed884a888703e00561d0838f178d5b4"
+    clawbench_commit: str = "ca930dfecc95ebe1565ab7c001650fbcc3f9d89d"
     scenarios: List[str] = field(
         default_factory=lambda: [
             "client_escalation",
@@ -148,7 +162,9 @@ class ValidatorConfig:
                 check=True,
             )
             actual_commit = result.stdout.strip()
-
+            # #region agent log
+            _debug_log("config.py:__post_init__", "clawbench commit check", {"expected": self.clawbench_commit, "actual": actual_commit, "match": actual_commit == self.clawbench_commit}, "H2")
+            # #endregion
             if actual_commit != self.clawbench_commit:
                 raise ValueError(
                     f"ClawBench version mismatch!\n"
@@ -179,6 +195,11 @@ class ValidatorConfig:
             dotenv_path = Path(__file__).parent.parent.parent / ".env.validator"
         load_dotenv(dotenv_path)
 
+        # #region agent log
+        _default_commit = "ca930dfecc95ebe1565ab7c001650fbcc3f9d89d"
+        _resolved_commit = os.getenv("CLAWBENCH_COMMIT", _default_commit)
+        _debug_log("config.py:from_env", "CLAWBENCH_COMMIT from env and resolved", {"env_raw": os.getenv("CLAWBENCH_COMMIT"), "resolved_commit": _resolved_commit}, "H1")
+        # #endregion
         return cls(
             wallet_name=os.getenv("WALLET_NAME", "validator"),
             wallet_hotkey=os.getenv("WALLET_HOTKEY", "default"),
@@ -190,6 +211,8 @@ class ValidatorConfig:
                     str(Path(__file__).parent.parent.parent / "clawbench")
                 )
             ),
+            clawbench_commit=_resolved_commit,
+
             eval_interval_blocks=int(os.getenv("EVAL_INTERVAL_BLOCKS", "7200")),
             ema_alpha=float(os.getenv("EMA_ALPHA", "0.3")),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
